@@ -8,8 +8,15 @@ const SEC_PER_HOUR = SEC_PER_MIN * MIN_PER_HOUR
 const SEC_PER_DAY = (SEC_PER_HOUR * HOUR_PER_DAY)
 const NORMALIZED_SECOND = 1.0 / (SEC_PER_DAY)
 
-enum SYS_CLK_MODE {MODE_AMPM, MODE_24HR, MODE_WORK, MODE_COUNT}
+enum SYS_CLK_MODE {MODE_AMPM, MODE_24HR, MODE_WORK, MODE_TEST, MODE_COUNT}
+var mode_desc = {
+	SYS_CLK_MODE.MODE_AMPM: "AMPM",
+	SYS_CLK_MODE.MODE_24HR: "24HR",
+	SYS_CLK_MODE.MODE_WORK: "WORK",
+	SYS_CLK_MODE.MODE_TEST: "TEST",
+	}
 
+onready var time_now_label = find_node("time_now_label")
 onready var time_now_raw = find_node("time_now_raw")
 onready var time_now = find_node("time_now")
 onready var ampm_label = find_node("ampm_label")
@@ -29,6 +36,7 @@ onready var new_minutes_per_hour = find_node("new_minutes_per_hour")
 onready var new_seconds_per_minute = find_node("new_seconds_per_minute")
 
 var clock_mode = SYS_CLK_MODE.MODE_24HR
+var prev_clock_mode = clock_mode
 var now = {"hour": 0, "minute": 0, "second": 0}
 var now_sec = 0
 
@@ -52,8 +60,17 @@ func _ready():
 	set_clock_mode(clock_mode)
 
 func _process(delta):
-	now = OS.get_time()
-#	now = get_test_clock()
+	if clock_mode == SYS_CLK_MODE.MODE_TEST:
+		time_now_label.text = "Testing %s Mode" % mode_desc[prev_clock_mode]
+	else:
+		time_now_label.text = "Time Now"
+	
+	var proc_clock_mode = clock_mode
+	if(clock_mode == SYS_CLK_MODE.MODE_TEST):
+		now = get_test_clock()
+		proc_clock_mode = prev_clock_mode
+	else:
+		now = OS.get_time()
 	now_sec = time_to_sec(now)
 	
 	if(now.second != prev_sec):
@@ -63,7 +80,7 @@ func _process(delta):
 	# Calculate and update time
 	time_now_raw.text = "%02d:%02d:%02d" % [now.hour, now.minute, now.second]
 	ampm_label.visible = false
-	match(clock_mode):
+	match(proc_clock_mode):
 		SYS_CLK_MODE.MODE_24HR:
 			time_now.text = "%02d:%02d:%02d" % [now.hour, now.minute, now.second]
 			
@@ -144,7 +161,7 @@ func set_new_time(h, m, s):
 	new_time.text = fmt % [int(h), int(m), int(s)]
 
 func get_test_clock():
-	acc += 50
+	acc += 43
 	acc = acc % SEC_PER_DAY
 	var test_clock = {}
 	test_clock.hour = acc / SEC_PER_HOUR
@@ -153,11 +170,20 @@ func get_test_clock():
 	return(test_clock)
 
 func set_clock_mode(new_mode):
+	if new_mode != SYS_CLK_MODE.MODE_TEST:
+		prev_clock_mode = new_mode
+		clock_mode = new_mode
+	else:
+		acc = time_to_sec(now)
 	clock_mode = new_mode
 	for i in range(SYS_CLK_MODE.MODE_COUNT):
 		clock_mode_buttons.get_child(i).pressed = false
 	clock_mode_buttons.get_child(new_mode).pressed = true
-	schedule.visible = (clock_mode == SYS_CLK_MODE.MODE_WORK)
+	var test_work = (clock_mode == SYS_CLK_MODE.MODE_TEST and prev_clock_mode == SYS_CLK_MODE.MODE_WORK)
+	if clock_mode == SYS_CLK_MODE.MODE_WORK or test_work:
+		schedule.visible = true
+	else:
+		schedule.visible = false
 
 func get_time_val(nodes):
 	var h_node = nodes[0]
