@@ -90,7 +90,9 @@ func _process(delta):
 				ampm_label.text = "PM"
 			else:
 				ampm_label.text = "AM"
-			now.hour = (now.hour - 1) % 12 + 1
+			now.hour = now.hour % 12
+			if now.hour == 0:
+				now.hour = 12
 			time_now.text = "%02d:%02d:%02d" % [now.hour, now.minute, now.second]
 			
 		SYS_CLK_MODE.MODE_WORK:
